@@ -20,6 +20,7 @@ class MessageSecurity{
     private ContainerBagInterface $container;
     private MessageBusInterface $bus;
     private Serializer $serializer;
+    private Setting $setting;
 
     /**
      * @param ContainerBagInterface $container
@@ -41,10 +42,9 @@ class MessageSecurity{
         if (null === $envelope->last(CoaStamp::class)) {
             $message = $envelope->getMessage();
             $payload = $this->serializer->serialize($message, 'json');
-            $settings = $this->getSettings();
-            $producerId = $settings["id"];
-            $payloadToken = hash_hmac("sha256",$payload,base64_decode($settings["token"]));
-            $envelope = $envelope->with(new CoaStamp($producerId,$payloadToken));
+            $setting = $this->getSetting();
+            $payloadToken = hash_hmac("sha256",$payload,base64_decode($setting->getToken()));
+            $envelope = $envelope->with(new CoaStamp($setting->getId(),$payloadToken));
         }
         return $envelope;
     }
@@ -60,12 +60,14 @@ class MessageSecurity{
         }
 
         $payload = $this->serializer->serialize($envelope->getMessage(), 'json');
-        $settings = $this->getSettings();
-        $settings["producers"][] = [
-            "id"=>  $settings["id"],
-            "token"=>  $settings["token"],
+        $s = $this->getSetting();
+
+        $producers = $s->getProducers();
+        $producers[] = [
+            "id"=>  $s->getId(),
+            "token"=>  $s->getToken(),
         ];
-        $producer = array_values(array_filter($settings["producers"],function (array $el) use(&$stamp){
+        $producer = array_values(array_filter($producers,function (array $el) use(&$stamp){
             return ($el["id"] === $stamp->getProducerId());
         }));
         $producer = array_pop($producer);
@@ -94,31 +96,70 @@ class MessageSecurity{
         return true;
     }
 
+    public function update(){
+
+    }
+
     /**
-     * @return array
+     * @return Setting
      * @throws \Psr\Container\ContainerExceptionInterface
      * @throws \Psr\Container\NotFoundExceptionInterface
      */
-    private function getSettings() :array {
+    private function getSetting() :Setting {
         $filename = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
         $key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
 
-        if(!file_exists($filename)){
+        $this
+            ->createSettingFile()
+            ->checkSettingFileIntegrity()
+        ;
 
-            $key = hash("sha256",openssl_random_pseudo_bytes(16));
-            $filename_data = [
-                "id"=>base64_encode(openssl_random_pseudo_bytes(16,$ok)),
-                "token"=>base64_encode(openssl_random_pseudo_bytes(32,$ok)),
-                "producers"=>[]
-            ];
-            $filename_data = @openssl_encrypt(json_encode($filename_data),"aes-256-cbc",$key,0);
+        $key_data = file_get_contents($key_file);
+        $broker_data = file_get_contents($filename);
+        $s = json_decode(openssl_decrypt($broker_data,"aes-256-cbc",$key_data,0),true);
+        $this->setting = new Setting($s["id"],$s["token"],$s["producers"]);
+        return $this->setting;
+    }
+
+    private function createSettingFile() :self {
+        $filename = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
+        $key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
+        if(!file_exists($filename)){
+            $key = openssl_random_pseudo_bytes(16);
+            $id = base64_encode(openssl_random_pseudo_bytes(16,$ok));
+            $token = base64_encode(openssl_random_pseudo_bytes(32,$ok));
+            $filename_data = new Setting($id,$token,[]);
+            $payload = $this->serializer->serialize($filename_data, 'json');
+            $filename_data = @openssl_encrypt($payload,"aes-256-cbc",$key,0);
             file_put_contents($filename,$filename_data);
             file_put_contents($key_file,$key);
         }
+        return $this;
+    }
+
+    public function checkSettingFileIntegrity(): self{
+        $filename = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
+        $key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
+
+        if(!file_exists($filename) || !file_exists($key_file) ){
+            throw new \Exception("base de données coa_messenger inexistante");
+        }
+
         $key_data = file_get_contents($key_file);
         $broker_data = file_get_contents($filename);
-        $settings = json_decode(openssl_decrypt($broker_data,"aes-256-cbc",$key_data,0),true);
-        return $settings;
+
+
+        try {
+            $s = json_decode(openssl_decrypt($broker_data,"aes-256-cbc",$key_data,0),true);
+            if(!isset($s["id"]) || !isset($s["token"]) || !isset($s["producers"])){
+                throw new \Exception("base de données coa_messenger corrompu");
+            }
+        }
+        catch (\Exception $e){
+            throw new \Exception("base de données coa_messenger corrompu");
+        }
+
+        return $this;
     }
 }
 

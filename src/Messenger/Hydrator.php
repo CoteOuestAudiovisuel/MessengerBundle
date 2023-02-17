@@ -2,6 +2,10 @@
 namespace Coa\MessengerBundle\Messenger;
 
 /**
+ * implementation du pattern Hydratation
+ * permet l'initialisation des proprietés d'une instance de classe via un vecteur
+ * d'initiliation clé valeur
+ *
  * @author Zacharie Assagou <zacharie.assagou@coteouest.ci>
  */
 abstract class Hydrator{
