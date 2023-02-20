@@ -75,11 +75,7 @@ class MessageSecurity{
         if($message instanceof DefaulfMessage){
             $this->handleWhoIsMessage($envelope);
         }
-
-        $producers = array_map(function ($el){
-            return new Producer($el["id"],$el["token"]);
-        },$this->setting->getProducers());
-
+        $producers = $this->setting->getProducers();
         $producers[] = new Producer($this->setting->getId(),$this->setting->getToken());
 
         $producer = array_values(array_filter($producers,function (Producer $el) use(&$stamp){
@@ -109,15 +105,25 @@ class MessageSecurity{
             }
 
             if(!$envelope->last(CoaWhoIsRequestStamp::class) && !$envelope->last(CoaWhoIsEchoStamp::class)){
-                throw new \Exception("impossible de traiter ce message 2");
+                //throw new \Exception("impossible de traiter ce message 2");
+                // il faut enregistrer le message dans la base de données local
+                // pour ensuite la rejouer lors du whois.echo response de ce producer
+                $this
+                    ->setting
+                    ->addMessage($message)
+                    ->save($this->db_file,$this->key_file)
+                    ;
             }
-        }
 
-        $token = hash_hmac("sha256",$payload,base64_decode($producer->getToken()));
-        if(!hash_equals($token,$stamp->getPayloadToken())){
-            // on doit redemander les credentials du producer
-            throw new MessageDecodingFailedException('Invalid x-coa-stamp header value');
-            //throw new \Exception("impossible de traiter ce message 3");
+            return false;
+        }
+        else{
+            $token = hash_hmac("sha256",$payload,base64_decode($producer->getToken()));
+            if(!hash_equals($token,$stamp->getPayloadToken())){
+                // on doit redemander les credentials du producer
+                throw new MessageDecodingFailedException('Invalid x-coa-stamp header value');
+                //throw new \Exception("impossible de traiter ce message 3");
+            }
         }
         return true;
     }
@@ -135,6 +141,8 @@ class MessageSecurity{
             ->checkSettingFileIntegrity()
         ;
         $this->setting = Setting::loadData($this->db_file,$this->key_file);
+
+        //dd($this->setting);
         return $this->setting;
     }
 

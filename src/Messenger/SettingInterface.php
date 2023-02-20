@@ -2,6 +2,8 @@
 namespace Coa\MessengerBundle\Messenger;
 
 
+use Coa\MessengerBundle\Messenger\Message\DefaulfMessage;
+
 /**
  * interface representant de la base de données du middleware
  * les stock:
@@ -117,4 +119,14 @@ interface SettingInterface{
      * @return $this
      */
     public function removeWhoIsRequest(WhoIsRequest $target) : self;
+
+    /**
+     * @param DefaulfMessage $message
+     * @return $this
+     */
+    public function addMessage(DefaulfMessage $message): self;
+    /**
+     * @return array
+     */
+    public function getMessages(): array;
 }

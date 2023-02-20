@@ -7,10 +7,10 @@ class WhoIsRequest{
     private string $status;
     private int $timestamps;
 
-    public function __construct(string $id, string $status = "pending"){
+    public function __construct(string $id, string $status = "pending", ?int $timestamps = null){
         $this->id = $id;
         $this->status = $status;
-        $this->timestamps = (new \DateTimeImmutable())->getTimestamp();
+        $this->timestamps = $timestamps ?? (new \DateTimeImmutable())->getTimestamp();
     }
 
     /**

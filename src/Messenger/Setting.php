@@ -1,6 +1,7 @@
 <?php
 namespace Coa\MessengerBundle\Messenger;
 
+use Coa\MessengerBundle\Messenger\Message\DefaulfMessage;
 use Symfony\Component\Serializer\Encoder\JsonEncoder;
 use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
 use Symfony\Component\Serializer\Serializer;
@@ -14,17 +15,21 @@ class Setting implements SettingInterface{
     private string $token;
     private array $producers;
     private array $whoisRequests;
+    private array $messages;
 
     /**
      * @param string $id
      * @param string $token
      * @param array $producers
+     * @param array $whoisRequests
+     * @param array $messages
      */
-    public function __construct(string $id, string $token, array $producers = []){
+    public function __construct(string $id, string $token, array $producers = [], array $whoisRequests = [], array $messages = []){
         $this->id = $id;
         $this->token = $token;
         $this->producers = $producers;
-        $this->whoisRequests = [];
+        $this->whoisRequests = $whoisRequests;
+        $this->messages = $messages;
 
         foreach ($producers as $item){
             $this->addProducer($item);
@@ -80,7 +85,27 @@ class Setting implements SettingInterface{
         $key = file_get_contents($key_file);
 
         $s = json_decode(openssl_decrypt($payload,"aes-256-cbc",$key,true),true);
-        return new self($s["id"],$s["token"],$s["producers"]);
+
+        $producers = array_map(function ($el){
+            return new Producer($el["id"],$el["token"]);
+        },$s["producers"]);
+
+        $whoisRequests = [];
+        $messages = [];
+
+        if(isset($s["whoisRequests"])){
+            $whoisRequests = array_map(function ($el){
+                return new WhoIsRequest($el["id"],$el["status"],$el["timestamps"]);
+            },$s["whoisRequests"]);
+        }
+
+        if(isset($s["messages"])){
+            $messages = array_map(function ($el){
+                return new DefaulfMessage($el);
+            },$s["messages"]);
+        }
+
+        return new self($s["id"],$s["token"],$producers,$whoisRequests, $messages);
     }
 
     /**
@@ -103,6 +128,17 @@ class Setting implements SettingInterface{
     /**
      * {@inheritdoc }
      */
+    public function getProducer(string $id): ?Producer{
+        foreach ($this->producers as $i=>$el){
+            if($id === $el->getId()){
+                return $el;
+            }
+        }
+        return null;
+    }
+    /**
+     * {@inheritdoc }
+     */
     public function hasProducer(Producer $target): bool{
         foreach ($this->producers as $i=>$el){
             if($target->getId() == $el->getId()){
@@ -111,7 +147,6 @@ class Setting implements SettingInterface{
         }
         return false;
     }
-
     /**
      * {@inheritdoc }
      */
@@ -121,8 +156,6 @@ class Setting implements SettingInterface{
         }
         return $this;
     }
-
-
     /**
      * {@inheritdoc }
      */
@@ -201,12 +234,14 @@ class Setting implements SettingInterface{
     /**
      * {@inheritdoc }
      */
-    public function getProducer(string $id): ?Producer{
-        foreach ($this->producers as $i=>$el){
-            if($id === $el->getId()){
-                return $el;
-            }
-        }
-        return null;
+    public function addMessage(DefaulfMessage $message) : self{
+        $this->messages[] = $message;
+        return $this;
+    }
+    /**
+     * {@inheritdoc }
+     */
+    public function getMessages(): array{
+        return $this->messages;
     }
 }
