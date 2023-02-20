@@ -158,7 +158,6 @@ class MessageSecurity{
                 }
 
                 if($message->getPayload()["id"] != "*"){ // broadcast whois.req
-                    dump("---------------------->",$message->getPayload()["id"],$this->setting->getId(),"<--------------------");
                     if(@$message->getPayload()["id"] != $this->setting->getId()){
                         throw new MessageDecodingFailedException("Got whois.req it's not me");
                     }
@@ -206,7 +205,6 @@ class MessageSecurity{
                     }
                 }
 
-
                 break;
 
             case "whois.echo":
@@ -222,7 +220,6 @@ class MessageSecurity{
 
                 // on doit verifier si le client local a effectué une demande auparavant
                 $howisrequest = new WhoIsRequest($message->getPayload()["id"]);
-                dump($this->setting);
 
                 if(!$this->setting->hasWhoIsRequest($howisrequest)){
                     throw new MessageDecodingFailedException("Got whois.echo but local producer did not request whois.req");
