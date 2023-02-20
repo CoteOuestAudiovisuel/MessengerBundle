@@ -165,6 +165,7 @@ class MessageSecurity{
             case "whois.req":
 
                 if($message->getPayload()["id"] != "*"){ // broadcast whois.req
+                    dump("---------------------->",$message->getPayload()["id"],$this->setting->getId(),"<--------------------");
                     if(@$message->getPayload()["id"] != $this->setting->getId()){
                         throw new MessageDecodingFailedException("Got whois.req it's not me");
                     }
@@ -223,9 +224,14 @@ class MessageSecurity{
                 }
                 $envelope = $envelope->with(new CoaWhoIsEchoStamp($stamp->getProducerId(),$this->setting->getId()));
 
+                if(!($producer = $this->setting->getProducer($stamp->getProducerId()))){
+                    $this
+                        ->setting
+                        ->addProducer(new Producer($stamp->getProducerId(),$message->getPayload()["token"]))
+                        ;
+                }
                 $this
                     ->setting
-                    ->addProducer(new Producer($stamp->getProducerId(),$message->getPayload()["token"]))
                     ->removeWhoIsRequest($howisrequest)
                     ->save($this->db_file,$this->key_file)
                 ;
