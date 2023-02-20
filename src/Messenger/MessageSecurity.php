@@ -141,8 +141,6 @@ class MessageSecurity{
             ->checkSettingFileIntegrity()
         ;
         $this->setting = Setting::loadData($this->db_file,$this->key_file);
-
-        //dd($this->setting);
         return $this->setting;
     }
 

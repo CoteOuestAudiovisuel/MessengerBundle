@@ -27,12 +27,20 @@ class Setting implements SettingInterface{
     public function __construct(string $id, string $token, array $producers = [], array $whoisRequests = [], array $messages = []){
         $this->id = $id;
         $this->token = $token;
-        $this->producers = $producers;
-        $this->whoisRequests = $whoisRequests;
-        $this->messages = $messages;
+        $this->producers = [];
+        $this->whoisRequests = [];
+        $this->messages = [];
 
         foreach ($producers as $item){
             $this->addProducer($item);
+        }
+
+        foreach ($whoisRequests as $item){
+            $this->addWhoIsRequest($item);
+        }
+
+        foreach ($messages as $item){
+            $this->addMessage($item);
         }
     }
 
@@ -243,5 +251,13 @@ class Setting implements SettingInterface{
      */
     public function getMessages(): array{
         return $this->messages;
+    }
+
+    /**
+     * @return array
+     */
+    public function getWhoisRequests(): array
+    {
+        return $this->whoisRequests;
     }
 }
