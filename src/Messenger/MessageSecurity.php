@@ -90,21 +90,28 @@ class MessageSecurity{
         if(!isset($producer)){
             // ce producer n'est pas connu dans la base de données local
             // on doit demander les credentials du producer
-            $this->bus->dispatch(new DefaulfMessage([
-                "action"=>"whois.req",
-                "payload"=>["id"=>$stamp->getProducerId()]
-            ]),[
-                new AmqpStamp('whois.req', AMQP_NOPARAM, [
-                    "content_type"=>"application/json",
-                    "delivery_mode"=>2,
-                ]),
-            ]);
+            $howisrequest = new WhoIsRequest($stamp->getProducerId());
+            if(!$this->setting->hasWhoIsRequest($howisrequest)){
+                $this
+                    ->setting
+                    ->addWhoIsRequest($howisrequest)
+                    ->save($this->db_file, $this->key_file)
+                ;
 
-            $this
-                ->setting
-                ->addWhoIsRequest(new WhoIsRequest($stamp->getProducerId()))
-                ->save($this->db_file, $this->key_file)
-            ;
+                $this->bus->dispatch(new DefaulfMessage([
+                    "action"=>"whois.req",
+                    "payload"=>["id"=>$stamp->getProducerId()]
+                ]),[
+                    new AmqpStamp('whois.req', AMQP_NOPARAM, [
+                        "content_type"=>"application/json",
+                        "delivery_mode"=>2,
+                    ]),
+                ]);
+            }
+
+            if($envelope->last(CoaWhoIsRequestStamp::class)){
+                throw new MessageDecodingFailedException('Already sent whois.req for client: '.$howisrequest->getId());
+            }
 
             throw new \Exception("impossible de traiter ce message 2");
         }
@@ -172,6 +179,7 @@ class MessageSecurity{
                 break;
 
             case "whois.echo":
+
                 if(!isset($message->getPayload()["token"])){
                     throw new MessageDecodingFailedException("Got whois.echo but does not contain producer credentials");
                 }
