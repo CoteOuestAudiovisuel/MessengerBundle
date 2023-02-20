@@ -84,37 +84,28 @@ class MessageSecurity{
         $producer = array_pop($producer);
 
         if(!isset($producer)){
-            $howisrequest = new WhoIsRequest($stamp->getProducerId());
-            if(!$this->setting->hasWhoIsRequest($howisrequest)){
-                $this
-                    ->setting
-                    ->addWhoIsRequest($howisrequest)
-                    ->save($this->db_file, $this->key_file)
-                ;
-
-                $this->bus->dispatch(new DefaulfMessage([
-                    "action"=>"whois.req",
-                    "payload"=>["id"=>$stamp->getProducerId()]
-                ]),[
-                    new AmqpStamp('whois.req', AMQP_NOPARAM, [
-                        "content_type"=>"application/json",
-                        "delivery_mode"=>2,
-                        "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
-                    ]),
-                ]);
-            }
-
             if(!$envelope->last(CoaWhoIsRequestStamp::class) && !$envelope->last(CoaWhoIsEchoStamp::class)){
-                //throw new \Exception("impossible de traiter ce message 2");
-                // il faut enregistrer le message dans la base de données local
-                // pour ensuite la rejouer lors du whois.echo response de ce producer
-                $this
-                    ->setting
-                    ->addMessage($message)
-                    ->save($this->db_file,$this->key_file)
+                $howisrequest = new WhoIsRequest($stamp->getProducerId());
+                if(!$this->setting->hasWhoIsRequest($howisrequest)){
+                    $this
+                        ->setting
+                        ->addWhoIsRequest($howisrequest)
+                        ->addMessage($message)
+                        ->save($this->db_file, $this->key_file)
                     ;
-            }
 
+                    $this->bus->dispatch(new DefaulfMessage([
+                        "action"=>"whois.req",
+                        "payload"=>["id"=>$stamp->getProducerId()]
+                    ]),[
+                        new AmqpStamp('whois.req', AMQP_NOPARAM, [
+                            "content_type"=>"application/json",
+                            "delivery_mode"=>2,
+                            "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
+                        ]),
+                    ]);
+                }
+            }
             return false;
         }
         else{
@@ -161,6 +152,10 @@ class MessageSecurity{
 
         switch ($message->getAction()){
             case "whois.req":
+                // empecher de s'envoyer soi meme un whois
+                if($stamp->getProducerId() == $this->setting->getId()){
+                    throw new MessageDecodingFailedException("Got whois.req, i'am the sender, nothing to be done");
+                }
 
                 if($message->getPayload()["id"] != "*"){ // broadcast whois.req
                     dump("---------------------->",$message->getPayload()["id"],$this->setting->getId(),"<--------------------");
@@ -168,7 +163,22 @@ class MessageSecurity{
                         throw new MessageDecodingFailedException("Got whois.req it's not me");
                     }
                 }
+
+
                 $envelope = $envelope->with(new CoaWhoIsRequestStamp($stamp->getProducerId(),$this->setting->getId()));
+
+                // on envoi directement un echo
+                // position bas
+                $this->bus->dispatch(new DefaulfMessage([
+                    "action"=>"whois.echo",
+                    "payload"=>["token"=>$this->setting->getToken(),"id"=>$this->setting->getId()]
+                ]),[
+                    new AmqpStamp('whois.echo', AMQP_NOPARAM, [
+                        "content_type"=>"application/json",
+                        "delivery_mode"=>2,
+                        "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
+                    ]),
+                ]);
 
                 // ce producer n'est pas deja dans notre base de données
                 if(!($producer = $this->setting->getProducer($stamp->getProducerId()))){
@@ -196,21 +206,15 @@ class MessageSecurity{
                     }
                 }
 
-                // on envoi directement un echo
-                // position bas
-                $this->bus->dispatch(new DefaulfMessage([
-                    "action"=>"whois.echo",
-                    "payload"=>["token"=>$this->setting->getToken(),"id"=>$this->setting->getId()]
-                ]),[
-                    new AmqpStamp('whois.echo', AMQP_NOPARAM, [
-                        "content_type"=>"application/json",
-                        "delivery_mode"=>2,
-                        "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
-                    ]),
-                ]);
+
                 break;
 
             case "whois.echo":
+
+                // empecher de s'envoyer soi meme un whois
+                if($stamp->getProducerId() == $this->setting->getId()){
+                    throw new MessageDecodingFailedException("Got whois.echo, i'am the sender, nothing to be done");
+                }
 
                 if(!isset($message->getPayload()["token"])){
                     throw new MessageDecodingFailedException("Got whois.echo but does not contain producer credentials");
