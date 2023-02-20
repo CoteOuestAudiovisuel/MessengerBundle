@@ -197,6 +197,7 @@ class MessageSecurity{
                 }
 
                 // on envoi directement un echo
+                // position bas
                 $this->bus->dispatch(new DefaulfMessage([
                     "action"=>"whois.echo",
                     "payload"=>["token"=>$this->setting->getToken(),"id"=>$this->setting->getId()]
