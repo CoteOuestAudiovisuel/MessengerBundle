@@ -170,18 +170,6 @@ class MessageSecurity{
                 }
                 $envelope = $envelope->with(new CoaWhoIsRequestStamp($stamp->getProducerId(),$this->setting->getId()));
 
-                // on envoi directement un echo
-                $this->bus->dispatch(new DefaulfMessage([
-                    "action"=>"whois.echo",
-                    "payload"=>["token"=>$this->setting->getToken(),"id"=>$this->setting->getId()]
-                ]),[
-                    new AmqpStamp('whois.echo', AMQP_NOPARAM, [
-                        "content_type"=>"application/json",
-                        "delivery_mode"=>2,
-                        "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
-                    ]),
-                ]);
-
                 // ce producer n'est pas deja dans notre base de données
                 if(!($producer = $this->setting->getProducer($stamp->getProducerId()))){
                     $howisrequest = new WhoIsRequest($stamp->getProducerId());
@@ -207,6 +195,18 @@ class MessageSecurity{
                         ]);
                     }
                 }
+
+                // on envoi directement un echo
+                $this->bus->dispatch(new DefaulfMessage([
+                    "action"=>"whois.echo",
+                    "payload"=>["token"=>$this->setting->getToken(),"id"=>$this->setting->getId()]
+                ]),[
+                    new AmqpStamp('whois.echo', AMQP_NOPARAM, [
+                        "content_type"=>"application/json",
+                        "delivery_mode"=>2,
+                        "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
+                    ]),
+                ]);
                 break;
 
             case "whois.echo":
