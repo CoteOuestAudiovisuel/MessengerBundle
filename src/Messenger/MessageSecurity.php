@@ -3,6 +3,8 @@ namespace Coa\MessengerBundle\Messenger;
 
 use Coa\MessengerBundle\Messenger\Message\DefaulfMessage;
 use Coa\MessengerBundle\Messenger\Stamp\CoaStamp;
+use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsEchoStamp;
+use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsRequestStamp;
 use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
 use Symfony\Component\Messenger\Bridge\Amqp\Transport\AmqpStamp;
 use Symfony\Component\Messenger\Envelope;
@@ -20,7 +22,9 @@ class MessageSecurity{
     private ContainerBagInterface $container;
     private MessageBusInterface $bus;
     private Serializer $serializer;
-    private Setting $setting;
+    private SettingInterface $setting;
+    private string $db_file;
+    private string $key_file;
 
     /**
      * @param ContainerBagInterface $container
@@ -32,6 +36,9 @@ class MessageSecurity{
         $encoders = [new JsonEncoder()];
         $normalizers = [new ObjectNormalizer()];
         $this->serializer = new Serializer($normalizers, $encoders);
+
+        $this->db_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
+        $this->key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
     }
 
     /**
@@ -49,26 +56,34 @@ class MessageSecurity{
         return $envelope;
     }
 
+
     /**
      * @param Envelope $envelope
      * @return bool
      * @throws \Exception
      */
-    public function verify(Envelope $envelope): bool{
+    public function verify(Envelope &$envelope): bool{
+        /** @var CoaStamp $stamp */
         if (!($stamp = $envelope->last(CoaStamp::class))) {
             return false;
         }
 
         $payload = $this->serializer->serialize($envelope->getMessage(), 'json');
-        $s = $this->getSetting();
+        $this->getSetting();
 
-        $producers = $s->getProducers();
-        $producers[] = [
-            "id"=>  $s->getId(),
-            "token"=>  $s->getToken(),
-        ];
-        $producer = array_values(array_filter($producers,function (array $el) use(&$stamp){
-            return ($el["id"] === $stamp->getProducerId());
+        $message = $envelope->getMessage();
+        if($message instanceof DefaulfMessage){
+            $this->handleBultinMessage($this->setting,$envelope);
+        }
+
+        $producers = array_map(function ($el){
+            return new Producer($el["id"],$el["token"]);
+        },$this->setting->getProducers());
+
+        $producers[] = new Producer($this->setting->getId(),$this->setting->getToken());
+
+        $producer = array_values(array_filter($producers,function (Producer $el) use(&$stamp){
+            return ($el->getId() === $stamp->getProducerId());
         }));
         $producer = array_pop($producer);
 
@@ -77,17 +92,24 @@ class MessageSecurity{
             // on doit demander les credentials du producer
             $this->bus->dispatch(new DefaulfMessage([
                 "action"=>"whois.req",
-                "payload"=>$stamp->getProducerId()
+                "payload"=>["id"=>$stamp->getProducerId()]
             ]),[
                 new AmqpStamp('whois.req', AMQP_NOPARAM, [
                     "content_type"=>"application/json",
                     "delivery_mode"=>2,
                 ]),
             ]);
+
+            $this
+                ->setting
+                ->addWhoIsRequest(new WhoIsRequest($stamp->getProducerId()))
+                ->save($this->db_file, $this->key_file)
+            ;
+
             throw new \Exception("impossible de traiter ce message 2");
         }
 
-        $token = hash_hmac("sha256",$payload,base64_decode($producer["token"]));
+        $token = hash_hmac("sha256",$payload,base64_decode($producer->getToken()));
         if(!hash_equals($token,$stamp->getPayloadToken())){
             // on doit redemander les credentials du producer
             throw new MessageDecodingFailedException('Invalid x-coa-stamp header value');
@@ -96,9 +118,6 @@ class MessageSecurity{
         return true;
     }
 
-    public function update(){
-
-    }
 
     /**
      * @return Setting
@@ -106,60 +125,78 @@ class MessageSecurity{
      * @throws \Psr\Container\NotFoundExceptionInterface
      */
     private function getSetting() :Setting {
-        $filename = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
-        $key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
 
         $this
             ->createSettingFile()
             ->checkSettingFileIntegrity()
         ;
-
-        $key_data = file_get_contents($key_file);
-        $broker_data = file_get_contents($filename);
-        $s = json_decode(openssl_decrypt($broker_data,"aes-256-cbc",$key_data,0),true);
-        $this->setting = new Setting($s["id"],$s["token"],$s["producers"]);
+        $this->setting = Setting::loadData($this->db_file,$this->key_file);
         return $this->setting;
     }
 
-    private function createSettingFile() :self {
-        $filename = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
-        $key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
-        if(!file_exists($filename)){
-            $key = openssl_random_pseudo_bytes(16);
-            $id = base64_encode(openssl_random_pseudo_bytes(16,$ok));
-            $token = base64_encode(openssl_random_pseudo_bytes(32,$ok));
-            $filename_data = new Setting($id,$token,[]);
-            $payload = $this->serializer->serialize($filename_data, 'json');
-            $filename_data = @openssl_encrypt($payload,"aes-256-cbc",$key,0);
-            file_put_contents($filename,$filename_data);
-            file_put_contents($key_file,$key);
-        }
+    public function createSettingFile() :self {
+        $this->setting = Setting::create($this->db_file,$this->key_file);
         return $this;
     }
 
     public function checkSettingFileIntegrity(): self{
-        $filename = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
-        $key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
-
-        if(!file_exists($filename) || !file_exists($key_file) ){
-            throw new \Exception("base de données coa_messenger inexistante");
-        }
-
-        $key_data = file_get_contents($key_file);
-        $broker_data = file_get_contents($filename);
-
-
-        try {
-            $s = json_decode(openssl_decrypt($broker_data,"aes-256-cbc",$key_data,0),true);
-            if(!isset($s["id"]) || !isset($s["token"]) || !isset($s["producers"])){
-                throw new \Exception("base de données coa_messenger corrompu");
-            }
-        }
-        catch (\Exception $e){
-            throw new \Exception("base de données coa_messenger corrompu");
-        }
-
+        Setting::checkIntegrity($this->db_file,$this->key_file);
         return $this;
+    }
+
+    public function handleBultinMessage(Setting &$setting, Envelope &$envelope){
+        /** @var CoaStamp $stamp */
+        $stamp = $envelope->last(CoaStamp::class);
+        $message = $envelope->getMessage();
+
+        switch ($message->getAction()){
+            case "whois.req":
+
+                if($message->getPayload()["id"] != "*"){ // broadcast whois.req
+                    if(@$message->getPayload()["id"] != $setting->getId()){
+                        throw new MessageDecodingFailedException("Got whois.req it's not me");
+                    }
+                }
+
+                $envelope = $envelope->with(new CoaWhoIsRequestStamp($stamp->getProducerId(),$setting->getId()));
+
+                $this->bus->dispatch(new DefaulfMessage([
+                    "action"=>"whois.echo",
+                    "payload"=>["token"=>$setting->getToken(),"id"=>$setting->getId()]
+                ]),[
+                    new AmqpStamp('whois.echo', AMQP_NOPARAM, [
+                        "content_type"=>"application/json",
+                        "delivery_mode"=>2,
+                    ]),
+                ]);
+                break;
+
+            case "whois.echo":
+                if(!isset($message->getPayload()["token"])){
+                    throw new MessageDecodingFailedException("Got whois.echo but does not contain producer credentials");
+                }
+
+                // on doit verifier si le client local a effectué une demande auparavant
+                $howisrequest = new WhoIsRequest($message->getPayload()["id"]);
+                if(!$this->setting->hasWhoIsRequest($howisrequest)){
+                    throw new MessageDecodingFailedException("Got whois.echo but local producer did not request whois.req");
+                }
+
+                $envelope = $envelope->with(new CoaWhoIsEchoStamp($stamp->getProducerId(),$setting->getId()));
+
+                $this
+                    ->setting
+                    ->removeWhoIsRequest($howisrequest)
+                    ->save($this->db_file,$this->key_file)
+                    ;
+
+                $producer = new Producer($stamp->getProducerId(),$message->getPayload()["token"]);
+                $setting
+                    ->addProducer($producer)
+                    ->save($this->db_file,$this->key_file)
+                ;
+                break;
+        }
     }
 }
 

@@ -1,7 +1,7 @@
 <?php
 namespace Coa\MessengerBundle\Messenger;
 
-class Producer implements SettingInterface{
+class Producer{
     private string $id;
     private string $token;
 

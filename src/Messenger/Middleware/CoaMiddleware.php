@@ -2,6 +2,8 @@
 namespace Coa\MessengerBundle\Messenger\Middleware;
 use Coa\MessengerBundle\Messenger\MessageSecurity;
 use Coa\MessengerBundle\Messenger\Stamp\CoaStamp;
+use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsEchoStamp;
+use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsRequestStamp;
 use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Middleware\MiddlewareInterface;
@@ -32,6 +34,7 @@ class CoaMiddleware implements MiddlewareInterface{
             //$this->logger->info('[{id}] Received & handling {class}', $context);
             $this->messageSecurity->verify($envelope);
         }
+
         $envelope = $stack->next()->handle($envelope, $stack);
 
         // message envoyé
