@@ -34,6 +34,12 @@ interface SettingInterface{
     public function getProducers(): array;
 
     /**
+     * @param string $id
+     * @return Producer|null
+     */
+    public function getProducer(string $id): ?Producer;
+
+    /**
      * vérifie l'intégrité du fichier de la base de donnée locale
      *
      * @param string $db_file

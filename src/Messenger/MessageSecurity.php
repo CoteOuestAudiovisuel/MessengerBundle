@@ -73,7 +73,7 @@ class MessageSecurity{
 
         $message = $envelope->getMessage();
         if($message instanceof DefaulfMessage){
-            $this->handleBultinMessage($this->setting,$envelope);
+            $this->handleWhoIsMessage($envelope);
         }
 
         $producers = array_map(function ($el){
@@ -88,8 +88,6 @@ class MessageSecurity{
         $producer = array_pop($producer);
 
         if(!isset($producer)){
-            // ce producer n'est pas connu dans la base de données local
-            // on doit demander les credentials du producer
             $howisrequest = new WhoIsRequest($stamp->getProducerId());
             if(!$this->setting->hasWhoIsRequest($howisrequest)){
                 $this
@@ -105,15 +103,14 @@ class MessageSecurity{
                     new AmqpStamp('whois.req', AMQP_NOPARAM, [
                         "content_type"=>"application/json",
                         "delivery_mode"=>2,
+                        "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
                     ]),
                 ]);
             }
 
-            if($envelope->last(CoaWhoIsRequestStamp::class)){
-                throw new MessageDecodingFailedException('Already sent whois.req for client: '.$howisrequest->getId());
+            if(!$envelope->last(CoaWhoIsRequestStamp::class) && !$envelope->last(CoaWhoIsEchoStamp::class)){
+                throw new \Exception("impossible de traiter ce message 2");
             }
-
-            throw new \Exception("impossible de traiter ce message 2");
         }
 
         $token = hash_hmac("sha256",$payload,base64_decode($producer->getToken()));
@@ -151,7 +148,7 @@ class MessageSecurity{
         return $this;
     }
 
-    public function handleBultinMessage(Setting &$setting, Envelope &$envelope){
+    public function handleWhoIsMessage(Envelope &$envelope){
         /** @var CoaStamp $stamp */
         $stamp = $envelope->last(CoaStamp::class);
         $message = $envelope->getMessage();
@@ -160,22 +157,49 @@ class MessageSecurity{
             case "whois.req":
 
                 if($message->getPayload()["id"] != "*"){ // broadcast whois.req
-                    if(@$message->getPayload()["id"] != $setting->getId()){
+                    if(@$message->getPayload()["id"] != $this->setting->getId()){
                         throw new MessageDecodingFailedException("Got whois.req it's not me");
                     }
                 }
+                $envelope = $envelope->with(new CoaWhoIsRequestStamp($stamp->getProducerId(),$this->setting->getId()));
 
-                $envelope = $envelope->with(new CoaWhoIsRequestStamp($stamp->getProducerId(),$setting->getId()));
-
+                // on envoi directement un echo
                 $this->bus->dispatch(new DefaulfMessage([
                     "action"=>"whois.echo",
-                    "payload"=>["token"=>$setting->getToken(),"id"=>$setting->getId()]
+                    "payload"=>["token"=>$this->setting->getToken(),"id"=>$this->setting->getId()]
                 ]),[
                     new AmqpStamp('whois.echo', AMQP_NOPARAM, [
                         "content_type"=>"application/json",
                         "delivery_mode"=>2,
+                        "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
                     ]),
                 ]);
+
+                // ce producer n'est pas deja dans notre base de données
+                if(!($producer = $this->setting->getProducer($stamp->getProducerId()))){
+                    $howisrequest = new WhoIsRequest($stamp->getProducerId());
+
+                    // ce producer n'est pas dans la table whoisRequest avec l'état pending
+                    // il faut l'enregistrer et envoyer une requeste whois.req
+                    if(!$this->setting->hasWhoIsRequest($howisrequest)){
+                        $this
+                            ->setting
+                            ->addWhoIsRequest($howisrequest)
+                            ->save($this->db_file, $this->key_file)
+                        ;
+
+                        $this->bus->dispatch(new DefaulfMessage([
+                            "action"=>"whois.req",
+                            "payload"=>["id"=>$stamp->getProducerId()]
+                        ]),[
+                            new AmqpStamp('whois.req', AMQP_NOPARAM, [
+                                "content_type"=>"application/json",
+                                "delivery_mode"=>2,
+                                "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
+                            ]),
+                        ]);
+                    }
+                }
                 break;
 
             case "whois.echo":
@@ -189,18 +213,12 @@ class MessageSecurity{
                 if(!$this->setting->hasWhoIsRequest($howisrequest)){
                     throw new MessageDecodingFailedException("Got whois.echo but local producer did not request whois.req");
                 }
-
-                $envelope = $envelope->with(new CoaWhoIsEchoStamp($stamp->getProducerId(),$setting->getId()));
+                $envelope = $envelope->with(new CoaWhoIsEchoStamp($stamp->getProducerId(),$this->setting->getId()));
 
                 $this
                     ->setting
+                    ->addProducer(new Producer($stamp->getProducerId(),$message->getPayload()["token"]))
                     ->removeWhoIsRequest($howisrequest)
-                    ->save($this->db_file,$this->key_file)
-                    ;
-
-                $producer = new Producer($stamp->getProducerId(),$message->getPayload()["token"]);
-                $setting
-                    ->addProducer($producer)
                     ->save($this->db_file,$this->key_file)
                 ;
                 break;

@@ -197,4 +197,16 @@ class Setting implements SettingInterface{
     public function getProducers(): array{
         return $this->producers;
     }
+
+    /**
+     * {@inheritdoc }
+     */
+    public function getProducer(string $id): ?Producer{
+        foreach ($this->producers as $i=>$el){
+            if($id === $el->getId()){
+                return $el;
+            }
+        }
+        return null;
+    }
 }
