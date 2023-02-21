@@ -1,6 +1,7 @@
 <?php
 namespace Coa\MessengerBundle\Messenger\Middleware;
 use Coa\MessengerBundle\Messenger\MessageSecurity;
+use Coa\MessengerBundle\Messenger\Stamp\CoaDiscardStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsEchoStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsRequestStamp;
@@ -33,6 +34,10 @@ class CoaMiddleware implements MiddlewareInterface{
         if ($envelope->last(ReceivedStamp::class)) {
             //$this->logger->info('[{id}] Received & handling {class}', $context);
             $this->messageSecurity->verify($envelope);
+        }
+        // il faut jeter ce message à la poubel
+        if($envelope->last(CoaDiscardStamp::class)){
+            return $envelope;
         }
 
         $envelope = $stack->next()->handle($envelope, $stack);

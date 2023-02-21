@@ -2,6 +2,7 @@
 namespace Coa\MessengerBundle\Messenger;
 
 use Coa\MessengerBundle\Messenger\Message\DefaulfMessage;
+use Coa\MessengerBundle\Messenger\Stamp\CoaDiscardStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsEchoStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsRequestStamp;
@@ -120,7 +121,9 @@ class MessageSecurity{
             $token = hash_hmac("sha256",$payload,base64_decode($producer->getToken()));
             if(!hash_equals($token,$stamp->getPayloadToken())){
                 // on doit redemander les credentials du producer
-                throw new MessageDecodingFailedException('Invalid x-coa-stamp header value');
+                $reason = 'Invalid x-coa-stamp header value';
+                $envelope = $envelope->with(new CoaDiscardStamp($reason));
+                throw new MessageDecodingFailedException($reason);
                 //throw new \Exception("impossible de traiter ce message 3");
             }
         }
@@ -162,12 +165,16 @@ class MessageSecurity{
             case "whois.req":
                 // empecher de s'envoyer soi meme un whois
                 if($stamp->getProducerId() == $this->setting->getId()){
-                    throw new MessageDecodingFailedException("Got whois.req, i'am the sender, nothing to be done");
+                    $reason = "Got whois.req, i'am the sender, nothing to be done";
+                    $envelope = $envelope->with(new CoaDiscardStamp($reason));
+                    throw new MessageDecodingFailedException($reason);
                 }
 
                 if($message->getPayload()["id"] != "*"){ // broadcast whois.req
                     if(@$message->getPayload()["id"] != $this->setting->getId()){
-                        throw new MessageDecodingFailedException("Got whois.req it's not me");
+                        $reason = "Got whois.req it's not me";
+                        $envelope = $envelope->with(new CoaDiscardStamp($reason));
+                        throw new MessageDecodingFailedException($reason);
                     }
                 }
                 $envelope = $envelope->with(new CoaWhoIsRequestStamp($stamp->getProducerId(),$this->setting->getId()));
@@ -217,18 +224,24 @@ class MessageSecurity{
 
                 // empecher de s'envoyer soi meme un whois
                 if($stamp->getProducerId() == $this->setting->getId()){
-                    throw new MessageDecodingFailedException("Got whois.echo, i'am the sender, nothing to be done");
+                    $reason = "Got whois.echo, i'am the sender, nothing to be done";
+                    $envelope = $envelope->with(new CoaDiscardStamp($reason));
+                    throw new MessageDecodingFailedException($reason);
                 }
 
                 if(!isset($message->getPayload()["token"])){
-                    throw new MessageDecodingFailedException("Got whois.echo but does not contain producer credentials");
+                    $reason = "Got whois.echo but does not contain producer credentials";
+                    $envelope = $envelope->with(new CoaDiscardStamp($reason));
+                    throw new MessageDecodingFailedException($reason);
                 }
 
                 // on doit verifier si le client local a effectué une demande auparavant
                 $howisrequest = new WhoIsRequest($message->getPayload()["id"]);
 
                 if(!$this->setting->hasWhoIsRequest($howisrequest)){
-                    throw new MessageDecodingFailedException("Got whois.echo but local producer did not request whois.req");
+                    $reason = "Got whois.echo but local producer did not request whois.req";
+                    $envelope = $envelope->with(new CoaDiscardStamp($reason));
+                    throw new MessageDecodingFailedException($reason);
                 }
                 $envelope = $envelope->with(new CoaWhoIsEchoStamp($stamp->getProducerId(),$this->setting->getId()));
 
