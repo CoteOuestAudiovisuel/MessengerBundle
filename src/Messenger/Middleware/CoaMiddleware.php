@@ -37,6 +37,7 @@ class CoaMiddleware implements MiddlewareInterface{
         }
         // il faut jeter ce message à la poubel
         if($envelope->last(CoaDiscardStamp::class)){
+            dump("--------------> on rentre dans le discard <--------------------");
             return $envelope;
         }
 
