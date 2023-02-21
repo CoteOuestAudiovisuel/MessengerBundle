@@ -73,8 +73,14 @@ class MessageSecurity{
 
         $message = $envelope->getMessage();
         if($message instanceof DefaulfMessage){
-            $this->handleWhoIsMessage($envelope);
+            try {
+                $this->handleWhoIsMessage($envelope);
+            }
+            catch (\Exception $e){
+
+            }
         }
+
         $producers = $this->setting->getProducers();
         $producers[] = new Producer($this->setting->getId(),$this->setting->getToken());
 
