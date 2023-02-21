@@ -217,7 +217,7 @@ class MessageSecurity{
                         "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
                     ]),
                 ]);
-
+                $envelope = $envelope->with(new CoaDiscardStamp(""));
                 break;
 
             case "whois.echo":
@@ -256,6 +256,7 @@ class MessageSecurity{
                     ->removeWhoIsRequest($howisrequest)
                     ->save($this->db_file,$this->key_file)
                 ;
+                $envelope = $envelope->with(new CoaDiscardStamp(""));
                 break;
         }
     }
