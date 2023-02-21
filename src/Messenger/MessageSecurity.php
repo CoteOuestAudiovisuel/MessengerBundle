@@ -84,26 +84,28 @@ class MessageSecurity{
         $producer = array_pop($producer);
 
         if(!isset($producer)){
-            if(!$envelope->last(CoaWhoIsRequestStamp::class) && !$envelope->last(CoaWhoIsEchoStamp::class)){
-                $howisrequest = new WhoIsRequest($stamp->getProducerId());
-                if(!$this->setting->hasWhoIsRequest($howisrequest)){
-                    $this
-                        ->setting
-                        ->addWhoIsRequest($howisrequest)
-                        ->addMessage($message)
-                        ->save($this->db_file, $this->key_file)
-                    ;
+            if($stamp->getProducerId() != $this->setting->getId()){
+                if(!$envelope->last(CoaWhoIsRequestStamp::class) && !$envelope->last(CoaWhoIsEchoStamp::class)){
+                    $howisrequest = new WhoIsRequest($stamp->getProducerId());
+                    if(!$this->setting->hasWhoIsRequest($howisrequest)){
+                        $this
+                            ->setting
+                            ->addWhoIsRequest($howisrequest)
+                            ->addMessage($message)
+                            ->save($this->db_file, $this->key_file)
+                        ;
 
-                    $this->bus->dispatch(new DefaulfMessage([
-                        "action"=>"whois.req",
-                        "payload"=>["id"=>$stamp->getProducerId()]
-                    ]),[
-                        new AmqpStamp('whois.req', AMQP_NOPARAM, [
-                            "content_type"=>"application/json",
-                            "delivery_mode"=>2,
-                            "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
-                        ]),
-                    ]);
+                        $this->bus->dispatch(new DefaulfMessage([
+                            "action"=>"whois.req",
+                            "payload"=>["id"=>$stamp->getProducerId()]
+                        ]),[
+                            new AmqpStamp('whois.req', AMQP_NOPARAM, [
+                                "content_type"=>"application/json",
+                                "delivery_mode"=>2,
+                                "reply_to"=>$_ENV["RABBITMQ_OWN_QUEUE"],
+                            ]),
+                        ]);
+                    }
                 }
             }
             return false;
