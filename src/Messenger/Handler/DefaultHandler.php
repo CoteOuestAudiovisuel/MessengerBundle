@@ -23,7 +23,7 @@ class DefaultHandler implements MessageHandlerInterface{
         $payload = $item->getPayload();
         $action = $item->getAction();
         $filename = $this->containerBag->get('kernel.project_dir')."/applog/broker-log.txt";
-        dump($item)
+        dump($item);
         file_put_contents($filename,json_encode(["action"=>$action,"payload"=>$payload])."\n", FILE_APPEND);
         $this->handlerManager->run($action,$payload);
     }
