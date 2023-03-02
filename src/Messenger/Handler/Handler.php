@@ -53,6 +53,20 @@ abstract class Handler{
     }
 
     /**
+     * retourne un bindingkey utilisable pour les ifcases
+     * @return string|null
+     */
+    public function getUsableBidingKey(){
+        $bindingKey = $this->bindingKey;
+        $b = explode(".",$bindingKey);
+        if(count($b) > 2){
+            $sce = array_pop($b);
+            $bindingKey = implode(".",$b);
+        }
+        return $bindingKey;
+    }
+
+    /**
      * @param array $payload
      * @return mixed
      */

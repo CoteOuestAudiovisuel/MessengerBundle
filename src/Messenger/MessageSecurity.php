@@ -7,6 +7,7 @@ use Coa\MessengerBundle\Messenger\Stamp\CoaStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsEchoStamp;
 use Coa\MessengerBundle\Messenger\Stamp\CoaWhoIsRequestStamp;
 use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Messenger\Bridge\Amqp\Transport\AmqpStamp;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Exception\MessageDecodingFailedException;
@@ -38,8 +39,14 @@ class MessageSecurity{
         $normalizers = [new ObjectNormalizer()];
         $this->serializer = new Serializer($normalizers, $encoders);
 
-        $this->db_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.db";
-        $this->key_file = $this->container->get('kernel.project_dir')."/applog/broker-messaging.key";
+        $fs = new Filesystem();
+        $folder = $this->container->get('kernel.project_dir')."/applog/broker";
+        if(!$fs->exists($folder)){
+            $fs->mkdir($folder);
+        }
+
+        $this->db_file = $folder."/coa_messenger.db";
+        $this->key_file = $folder."/coa_messenger.key";
     }
 
     /**

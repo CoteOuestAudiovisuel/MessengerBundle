@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c8a00481d0822b8d68f02dd1d91a1538",
+    "content-hash": "3a7dc1f7a6c6cea2a2ed561673eb8b92",
     "packages": [
         {
             "name": "doctrine/annotations",
@@ -2914,14 +2914,16 @@
     "minimum-stability": "dev",
     "stability-flags": {
         "symfony/messenger": 20,
-        "symfony/serializer": 20
+        "symfony/serializer": 20,
+        "symfony/filesystem": 20
     },
     "prefer-stable": false,
     "prefer-lowest": false,
     "platform": {
         "php": ">=7.4",
         "ext-json": "*",
-        "ext-openssl": "*"
+        "ext-openssl": "*",
+        "ext-amqp": "*"
     },
     "platform-dev": [],
     "plugin-api-version": "2.1.0"

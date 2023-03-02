@@ -35,9 +35,8 @@ class CoaMiddleware implements MiddlewareInterface{
             //$this->logger->info('[{id}] Received & handling {class}', $context);
             $this->messageSecurity->verify($envelope);
         }
-        // il faut jeter ce message à la poubel
+        // il faut jeter ce message à la poubelle
         if($envelope->last(CoaDiscardStamp::class)){
-            dump("--------------> on rentre dans le discard <--------------------");
             return $envelope;
         }
 
