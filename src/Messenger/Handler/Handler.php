@@ -56,7 +56,7 @@ abstract class Handler{
      * retourne un bindingkey utilisable pour les ifcases
      * @return string|null
      */
-    public function getUsableBidingKey(){
+    public function getUsableBindingKey(){
         $bindingKey = $this->bindingKey;
         $b = explode(".",$bindingKey);
         if(count($b) > 2){
