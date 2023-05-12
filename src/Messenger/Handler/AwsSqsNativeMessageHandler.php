@@ -59,7 +59,6 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
                 $region = $metadata["region"];
                 $detailStatus = strtoupper($detail["status"]);
 
-                $action = "mc.transcoding.status";
                 $payload = [
                     "jobId"=>$jobId,
                     "code"=>$code,
@@ -71,8 +70,11 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
 
                 switch($detailStatus){
                     case "PROGRESSING":
+                        $action = "mc.transcoding.submitted";
+                    break;
+
                     case "STATUS_UPDATE":
-                        $payload["state"] = "PROGRESSING";
+                        $action = "mc.transcoding.progressing";
                         if($detailStatus == "STATUS_UPDATE"){
                             $jobProgress = $detail["jobProgress"];
                             $payload["jobPercent"] = $jobProgress["jobPercentComplete"];
@@ -84,7 +86,7 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
                     case "ERROR":
                     case "CANCELED":
                     case "SUBMITTED":
-                        $payload["state"] = $detailStatus;
+                        $action = "mc.transcoding.".strtolower($detailStatus);
                     break;
                 }
                 $this->handlerManager->run($action,$payload);
