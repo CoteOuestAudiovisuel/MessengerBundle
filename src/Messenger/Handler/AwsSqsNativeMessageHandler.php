@@ -74,6 +74,6 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
             break;
         }
         $event = new IncomingSqsMessageEvent($message);
-        $this->dispatcher->dispatch($event);
+        $this->dispatcher->dispatch($event,"coa_messenger.incomingmessage");
     }
 }
