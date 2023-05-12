@@ -5,6 +5,9 @@ use Coa\MessengerBundle\Messenger\Message\AwsSqsNativeMessage;
 use Symfony\Component\DependencyInjection\ParameterBag\ContainerBagInterface;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
+use Symfony\Component\Serializer\Encoder\JsonEncoder;
+use Symfony\Component\Serializer\Normalizer\ObjectNormalizer;
+use Symfony\Component\Serializer\Serializer;
 
 
 /**
@@ -13,14 +16,18 @@ use Symfony\Component\Messenger\Handler\MessageHandlerInterface;
 class AwsSqsMessageHandler implements MessageHandlerInterface{
 
     private ContainerBagInterface $container;
+    private HandlerManager $handlerManager;
 
-    public function __construct(ContainerBagInterface $container){
+    public function __construct(ContainerBagInterface $container, HandlerManager $handlerManager){
         $this->container = $container;
+        $this->handlerManager = $handlerManager;
     }
 
-    public function __invoke(AwsSqsMessage $message){
-        $payload = $message->getPayload();
-        $action = $message->getAction();
+    public function log(AwsSqsMessage $message){
+        $encoders = [new JsonEncoder()];
+        $normalizers = [new ObjectNormalizer()];
+        $serializer = new Serializer($normalizers, $encoders);
+
         $date = (new \DateTime())->format("Y-m-d");
         $fs = new Filesystem();
         $folder = $this->container->get('kernel.project_dir')."/applog/broker/log";
@@ -28,6 +35,15 @@ class AwsSqsMessageHandler implements MessageHandlerInterface{
             $fs->mkdir($folder);
         }
         $log_file = $folder."/$date.log";
-        $fs->appendToFile($log_file, json_encode(["action"=>$action,"payload"=>$payload])."\n");
+        $data = $serializer->serialize($message, 'json');
+        $fs->appendToFile($log_file, $data."\n");
+    }
+
+    public function __invoke(AwsSqsMessage $message){
+        $this->log($message);
+
+        $payload = $message->getPayload();
+        $action = $message->getAction();
+        $this->handlerManager->run($action,$payload);
     }
 }
