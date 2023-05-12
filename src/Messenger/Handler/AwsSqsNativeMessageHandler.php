@@ -56,6 +56,8 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
                 $fileSize = $metadata["fsize"];
                 $originalFilename = $metadata["fname"];
                 $region = $metadata["region"];
+                $source_key = $metadata["source_key"];
+
                 $detailStatus = strtoupper($detail["status"]);
 
                 $payload = [
@@ -64,7 +66,8 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
                     "bucket"=>$bucket,
                     "fileSize"=>$fileSize,
                     "originalFilename"=>$originalFilename,
-                    "region"=>$region
+                    "region"=>$region,
+                    "source_key"=>$source_key
                 ];
 
                 switch($detailStatus){
