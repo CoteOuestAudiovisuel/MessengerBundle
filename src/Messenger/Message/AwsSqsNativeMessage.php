@@ -8,17 +8,16 @@ use Coa\MessengerBundle\Messenger\Hydrator;
  */
 class AwsSqsNativeMessage extends Hydrator
 {
-    CONST KEYS = "Type MessageId TopicArn Message Timestamp SignatureVersion Signature SigningCertURL UnsubscribeURL";
+    CONST KEYS = "version id detail-type source time region resources detail";
 
-    private string $type;
-    private string $messageId;
-    private string $topicArn;
-    private string $message;
-    private string $timestamp;
-    private string $signatureVersion;
-    private string $signature;
-    private string $signingCertURL;
-    private string $unsubscribeURL;
+    private string $version;
+    private string $id;
+    private string $detailType;
+    private string $source;
+    private string $time;
+    private string $region;
+    private array $resources;
+    private array $detail;
 
     /**
      * @param array $data
@@ -30,127 +29,112 @@ class AwsSqsNativeMessage extends Hydrator
     /**
      * @return string
      */
-    public function getType(): string{
-        return $this->type;
+    public function getVersion(): string{
+        return $this->version;
     }
 
     /**
-     * @param string $type
+     * @param string $version
      */
-    public function setType(string $type): void{
-        $this->type = $type;
-    }
-
-    /**
-     * @return string
-     */
-    public function getMessageId(): string{
-        return $this->messageId;
-    }
-
-    /**
-     * @param string $messageId
-     */
-    public function setMessageId(string $messageId): void{
-        $this->messageId = $messageId;
+    public function setVersion(string $version): void{
+        $this->version = $version;
     }
 
     /**
      * @return string
      */
-    public function getTopicArn(): string{
-        return $this->topicArn;
+    public function getId(): string{
+        return $this->id;
     }
 
     /**
-     * @param string $topicArn
+     * @param string $id
      */
-    public function setTopicArn(string $topicArn): void{
-        $this->topicArn = $topicArn;
-    }
-
-    /**
-     * @return string
-     */
-    public function getMessage(): string{
-        return $this->message;
-    }
-
-    /**
-     * @param string $message
-     */
-    public function setMessage(string $message): void{
-        $this->message = $message;
+    public function setId(string $id): void{
+        $this->id = $id;
     }
 
     /**
      * @return string
      */
-    public function getTimestamp(): string{
-        return $this->timestamp;
+    public function getDetailType(): string{
+        return $this->detailType;
     }
 
     /**
-     * @param string $timestamp
+     * @param string $detailType
      */
-    public function setTimestamp(string $timestamp): void{
-        $this->timestamp = $timestamp;
-    }
-
-    /**
-     * @return string
-     */
-    public function getSignatureVersion(): string{
-        return $this->signatureVersion;
-    }
-
-    /**
-     * @param string $signatureVersion
-     */
-    public function setSignatureVersion(string $signatureVersion): void{
-        $this->signatureVersion = $signatureVersion;
+    public function setDetailType(string $detailType): void{
+        $this->detailType = $detailType;
     }
 
     /**
      * @return string
      */
-    public function getSignature(): string{
-        return $this->signature;
+    public function getSource(): string{
+        return $this->source;
     }
 
     /**
-     * @param string $signature
+     * @param string $source
      */
-    public function setSignature(string $signature): void{
-        $this->signature = $signature;
-    }
-
-    /**
-     * @return string
-     */
-    public function getSigningCertURL(): string{
-        return $this->signingCertURL;
-    }
-
-    /**
-     * @param string $signingCertURL
-     */
-    public function setSigningCertURL(string $signingCertURL): void{
-        $this->signingCertURL = $signingCertURL;
+    public function setSource(string $source): void{
+        $this->source = $source;
     }
 
     /**
      * @return string
      */
-    public function getUnsubscribeURL(): string{
-        return $this->unsubscribeURL;
+    public function getTime(): string{
+        return $this->time;
     }
 
     /**
-     * @param string $unsubscribeURL
+     * @param string $time
      */
-    public function setUnsubscribeURL(string $unsubscribeURL): void{
-        $this->unsubscribeURL = $unsubscribeURL;
+    public function setTime(string $time): void{
+        $this->time = $time;
     }
 
+    /**
+     * @return string
+     */
+    public function getRegion(): string{
+        return $this->region;
+    }
+
+    /**
+     * @param string $region
+     */
+    public function setRegion(string $region): void{
+        $this->region = $region;
+    }
+
+    /**
+     * @return string
+     */
+    public function getResources(): array{
+        return $this->resources;
+    }
+
+    /**
+     * @param string $resources
+     */
+    public function setResources(array $resources): void{
+        $this->resources = $resources;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDetail(): array{
+        return $this->detail;
+    }
+
+    /**
+     * @param string $detail
+     */
+    public function setDetail(array $detail): void{
+        $this->detail = $detail;
+    }
 }

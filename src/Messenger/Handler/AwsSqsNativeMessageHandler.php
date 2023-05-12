@@ -42,12 +42,11 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
     }
 
     public function __invoke(AwsSqsNativeMessage $message){
-        $payload = json_decode($message->getMessage(),true);
         $this->log($message);
 
-        switch ($payload["source"]){
+        switch ($message->getSource()){
             case "aws.mediaconvert":
-                $detail = $payload["detail"];
+                $detail = $message->getDetail();
                 $metadata = $detail["userMetadata"];
                 if(!isset($metadata["code"]) || !isset($metadata["application"])) return;
 
@@ -86,7 +85,7 @@ class AwsSqsNativeMessageHandler implements MessageHandlerInterface{
                     case "ERROR":
                     case "CANCELED":
                     case "SUBMITTED":
-                        $action = "mc.transcoding.".strtolower($detailStatus);
+                        $action = "mc.transcoding." . strtolower($detailStatus);
                     break;
                 }
                 $this->handlerManager->run($action,$payload);
