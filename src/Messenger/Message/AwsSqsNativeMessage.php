@@ -8,12 +8,13 @@ use Coa\MessengerBundle\Messenger\Hydrator;
  */
 class AwsSqsNativeMessage extends Hydrator
 {
-    CONST KEYS = "version id detail-type source time region resources detail";
+    CONST KEYS = "version id detail-type source account time region resources detail";
 
     private string $version;
     private string $id;
     private string $detailType;
     private string $source;
+    private string $account;
     private string $time;
     private string $region;
     private array $resources;
@@ -80,6 +81,20 @@ class AwsSqsNativeMessage extends Hydrator
      */
     public function setSource(string $source): void{
         $this->source = $source;
+    }
+
+    /**
+     * @return string
+     */
+    public function getAccount(): string{
+        return $this->account;
+    }
+
+    /**
+     * @param string $account
+     */
+    public function setAccount(string $account): void{
+        $this->account = $account;
     }
 
     /**
