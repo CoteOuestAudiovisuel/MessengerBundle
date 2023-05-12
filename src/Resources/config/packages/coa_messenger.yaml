@@ -1,2 +1,8 @@
 coa_messenger:
   handlers: ~
+
+
+services:
+  Coa\MessengerBundle\Messenger\Handler\HandlerManager:
+    arguments:
+      $handlers: []
