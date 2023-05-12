@@ -1,5 +1,6 @@
 <?php
 namespace Coa\MessengerBundle\Messenger;
+use Coa\MessengerBundle\Messenger\CustomPropsTrait;
 
 /**
  * implementation du pattern Hydratation
@@ -24,6 +25,16 @@ abstract class Hydrator{
      */
     protected function hydrate(array $data = []){
         foreach ($data as $k=>$v){
+
+            $ee = explode("-",$k);
+            #fix for key like: detail-type must be transform to detailType
+            if(count($ee) > 1){
+                for($i =1, $c=count($ee); $i < $c; $i++){
+                    $ee[$i] = ucfirst(strtolower($ee[$i]));
+                }
+                $k = implode("",$ee);
+            }
+
             $getter = "get".$k;
             $setter = "set".$k;
             if(method_exists($this,$setter)){

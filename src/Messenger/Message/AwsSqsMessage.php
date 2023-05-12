@@ -2,10 +2,12 @@
 namespace Coa\MessengerBundle\Messenger\Message;
 use Coa\MessengerBundle\Messenger\Hydrator;
 
+
 /**
  * @author Zacharie Assagou <zacharie.assagou@coteouest.ci>
  */
-class DefaulfMessage extends Hydrator{
+class AwsSqsMessage extends Hydrator
+{
     private string $action;
     private array $payload;
 
