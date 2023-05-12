@@ -30,8 +30,6 @@ class JsonMessageSerializer implements SerializerInterface {
         $data = json_decode($body, true);
         $stamps = [];
 
-        dump($data);
-
         $keys = array_keys($data);
         if(count(array_diff($keys,explode(" ",AwsSqsNativeMessage::KEYS))) <= 2){
             $message = new AwsSqsNativeMessage($data);
