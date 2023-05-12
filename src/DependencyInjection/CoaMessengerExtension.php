@@ -1,11 +1,13 @@
 <?php
 namespace Coa\MessengerBundle\DependencyInjection;
 
+use Coa\MessengerBundle\Event\IncomingSqsMessageEvent;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
+use Symfony\Component\EventDispatcher\DependencyInjection\AddEventAliasesPass;
 
 /**
  * CoaMessengerExtension
@@ -31,5 +33,9 @@ class CoaMessengerExtension extends Extension implements PrependExtensionInterfa
         if(!file_exists($config_path)){
             copy(__DIR__.'/../Resources/config/packages/coa_messenger.yaml',$config_path);
         }
+
+        $container->addCompilerPass(new AddEventAliasesPass([
+            IncomingSqsMessageEvent::class => 'coa_messenger.incomingmessage',
+        ]));
     }
 }
