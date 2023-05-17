@@ -8,14 +8,16 @@ use Coa\MessengerBundle\Messenger\Hydrator;
  */
 class AwsSqsMessage extends Hydrator
 {
-    private string $action;
-    private array $payload;
+    private string $action = "";
+    private array $payload = [];
+    private array $detail = [];
 
     /**
      * @param array $data
      */
     public function __construct(array $data = []){
         parent::__construct($data);
+        $this->detail = array_merge(["userMetadata"=>["plateform"=>""]],$this->detail);
     }
 
     /**
@@ -47,6 +49,21 @@ class AwsSqsMessage extends Hydrator
      */
     public function setAction(?string $action): self {
         $this->action = $action;
+        return $this;
+    }
+
+    /**
+     * @return array
+     */
+    public function getDetail(): array{
+        return $this->detail;
+    }
+
+    /**
+     * @param array $detail
+     */
+    public function setDetail(array $detail): self{
+        $this->detail = $detail;
         return $this;
     }
 }
